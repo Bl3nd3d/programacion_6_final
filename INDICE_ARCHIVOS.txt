@@ -1,0 +1,194 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║                    PROYECTO FINAL - PROGRAMACIÓN VI                   ║
+║            Sistema de Gestión de Tareas Distribuidas en Java           ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+📦 CONTENIDO TOTAL: 10 archivos + script compilación
+
+═══════════════════════════════════════════════════════════════════════════
+🔷 ARCHIVOS JAVA (Código Fuente - Coloca en src/com/proyecto/)
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Task.java (2.6 KB)
+  └─ POJO que representa una tarea
+  └─ Paquete: com.proyecto.shared
+  └─ Carpeta destino: src/com/proyecto/shared/
+  └─ Rol: Clase de transferencia de datos entre cliente y servidor
+
+✓ DatabaseManager.java (8.3 KB) ⭐ CRÍTICO PARA CONCURRENCIA
+  └─ Gestor centralizado de base de datos
+  └─ Paquete: com.proyecto.server
+  └─ Carpeta destino: src/com/proyecto/server/
+  └─ Rol: Sincronización con 'synchronized' en todos los métodos
+  └─ IMPORTANTE: Edita las líneas 25-26 con tus credenciales MySQL
+
+✓ ClientHandler.java (11 KB) ⭐ CRÍTICO PARA CONCURRENCIA
+  └─ Manejador individual de cada cliente
+  └─ Paquete: com.proyecto.server
+  └─ Carpeta destino: src/com/proyecto/server/
+  └─ Rol: Implementa Runnable, corre en su propio thread
+  └─ IMPORTANTE: Este archivo demuestra claramente qué es un thread
+
+✓ TaskServer.java (7.8 KB) ⭐ CRÍTICO PARA ARQUITECTURA
+  └─ Servidor multihilo principal
+  └─ Paquete: com.proyecto.server
+  └─ Carpeta destino: src/com/proyecto/server/
+  └─ Rol: Crea un thread por cliente, maneja ServerSocket
+  └─ IMPORTANTE: Ejecuta este archivo para iniciar el servidor
+
+✓ TaskClient.java (7.2 KB)
+  └─ Cliente de línea de comandos
+  └─ Paquete: com.proyecto.client
+  └─ Carpeta destino: src/com/proyecto/client/
+  └─ Rol: Interfaz con usuario, se conecta al servidor
+  └─ IMPORTANTE: Ejecuta este archivo para cada cliente que desees
+
+═══════════════════════════════════════════════════════════════════════════
+🔷 SCRIPT DE BASE DE DATOS
+═══════════════════════════════════════════════════════════════════════════
+
+✓ schema.sql (1.9 KB)
+  └─ Script SQL para crear estructura de BD
+  └─ Ubicación: database/ (opcional para organización)
+  └─ Rol: Crea tablas usuarios, tareas, auditoria
+  └─ USO: Ejecuta en MySQL ANTES de compilar: mysql -u root -p < schema.sql
+
+═══════════════════════════════════════════════════════════════════════════
+🔷 DOCUMENTACIÓN (Lee en este orden)
+═══════════════════════════════════════════════════════════════════════════
+
+1️⃣  GUIA_PASO_A_PASO.md (Para instalar y ejecutar)
+    └─ Lee esto PRIMERO si es tu primera vez
+    └─ Explica: instalación Java, MySQL, JDBC, compilación, ejecución
+    └─ Paso a paso detallado, sin asumir experiencia previa
+    └─ Incluye troubleshooting si algo falla
+
+2️⃣  README.md (Referencia general del proyecto)
+    └─ Descripción del sistema
+    └─ Estructura del proyecto
+    └─ Instrucciones de compilación avanzadas
+    └─ Conceptos implementados
+
+3️⃣  EXPLICACION_CONCURRENCIA.md (Para defensa en examen) ⭐⭐⭐
+    └─ Lee esto ANTES del examen
+    └─ Explica técnicamente dónde está la concurrencia
+    └─ Responde preguntas que el profesor probablemente hará
+    └─ Incluye diagramas de race conditions y sincronización
+    └─ Material de referencia durante exposición
+
+4️⃣  RESUMEN_EDUCATIVO.md (Para entender qué recibiste)
+    └─ Lee después de instalar y ejecutar
+    └─ Explica conceptos: threads, sincronización, arquitectura
+    └─ Checklist para el examen
+    └─ Tips de último minuto
+
+═══════════════════════════════════════════════════════════════════════════
+🔷 SCRIPT DE COMPILACIÓN (Opcional)
+═══════════════════════════════════════════════════════════════════════════
+
+✓ compile.sh (4.4 KB)
+  └─ Script Bash automatizado para compilar
+  └─ Corre en Mac/Linux (Windows: usa git bash o WSL)
+  └─ Uso: bash compile.sh
+  └─ Opcional: puedes compilar manualmente sin esto
+
+═══════════════════════════════════════════════════════════════════════════
+📊 ESTRUCTURA FINAL DEL PROYECTO (Lo que debes crear)
+═══════════════════════════════════════════════════════════════════════════
+
+TuProyecto/
+├── src/
+│   └── com/proyecto/
+│       ├── server/
+│       │   ├── TaskServer.java          ← Coloca aquí
+│       │   ├── ClientHandler.java       ← Coloca aquí
+│       │   └── DatabaseManager.java     ← Coloca aquí (edita credenciales)
+│       ├── client/
+│       │   └── TaskClient.java          ← Coloca aquí
+│       └── shared/
+│           └── Task.java                ← Coloca aquí
+├── bin/                                  (se crea automáticamente)
+├── lib/
+│   └── mysql-connector-java-8.0.33.jar  ← Descarga e coloca aquí
+├── database/
+│   └── schema.sql                       ← Coloca aquí
+├── dist/                                (opcional, para JARs)
+├── README.md                            ← Coloca aquí
+├── GUIA_PASO_A_PASO.md                 ← Coloca aquí
+├── EXPLICACION_CONCURRENCIA.md         ← Coloca aquí
+├── RESUMEN_EDUCATIVO.md                ← Coloca aquí
+└── compile.sh                           ← Coloca aquí (opcional)
+
+═══════════════════════════════════════════════════════════════════════════
+⚡ RESUMEN DE PASOS RÁPIDOS
+═══════════════════════════════════════════════════════════════════════════
+
+1. Lee GUIA_PASO_A_PASO.md (15 minutos)
+2. Instala Java JDK 11+ y MySQL (10 minutos)
+3. Descarga JDBC Driver y colócalo en lib/ (5 minutos)
+4. Copia archivos .java a sus carpetas correctas (5 minutos)
+5. Ejecuta schema.sql en MySQL (5 minutos)
+6. Edita DatabaseManager.java con tus credenciales (2 minutos)
+7. Compila: javac -d bin -cp lib/* src/com/proyecto/**/*.java (1 minuto)
+8. Inicia servidor: java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.server.TaskServer (1 minuto)
+9. Abre cliente: java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.client.TaskClient (1 minuto)
+10. Prueba con usuario: admin / admin123 (2 minutos)
+
+TIEMPO TOTAL: ~45 minutos para tener todo funcionando
+
+═══════════════════════════════════════════════════════════════════════════
+✅ VERIFICACIÓN: ¿Está todo correctamente instalado?
+═══════════════════════════════════════════════════════════════════════════
+
+Deberías ver en el servidor:
+  [SERVIDOR] Escuchando en puerto: 5555
+  [SERVIDOR] Clientes activos: 0
+
+Deberías ver en el cliente después de login:
+  [ÉXITO] Bienvenido admin!
+  ========== TUS TAREAS ==========
+  ID: 1 | Configurar Servidor | Estado: EN_PROGRESO
+
+Si ves esto, ¡FELICIDADES! Tu proyecto funciona.
+
+═══════════════════════════════════════════════════════════════════════════
+❓ SI TIENES PROBLEMAS
+═══════════════════════════════════════════════════════════════════════════
+
+1. "Connection refused" en cliente
+   → El servidor no está ejecutándose. Verifica que iniciaste TaskServer.
+
+2. "No suitable driver found"
+   → No bajaste el JDBC Driver. Descárgalo de:
+     https://dev.mysql.com/downloads/connector/j/
+   → Colócalo en la carpeta lib/
+
+3. "Access denied for user 'root'"
+   → Edita DatabaseManager.java líneas 25-26 con tu usuario/contraseña MySQL
+
+4. "Unknown database"
+   → No ejecutaste schema.sql. Hazlo ahora:
+     mysql -u root -p < schema.sql
+
+Para más problemas, consulta la sección Troubleshooting en GUIA_PASO_A_PASO.md
+
+═══════════════════════════════════════════════════════════════════════════
+🎓 PARA EL EXAMEN
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Imprime: EXPLICACION_CONCURRENCIA.md (para consultar durante exposición)
+✓ Memoriza: Las 4 respuestas clave en RESUMEN_EDUCATIVO.md sección "Preguntas"
+✓ Practica: Abre 3-5 clientes simultáneamente varias veces
+✓ Entiende: Dónde está cada requisito en tu código
+✓ Prepara: Una demo viva del servidor con múltiples clientes
+
+PUNTOS CLAVE A DEFENDER:
+  • Threads: TaskServer.java línea 69
+  • Sincronización: DatabaseManager.java todos los métodos
+  • Cliente-Servidor: TaskClient ↔ TaskServer via sockets
+  • Login: DatabaseManager.autenticarUsuario()
+  • BD: schema.sql crea 3 tablas con relaciones
+
+═══════════════════════════════════════════════════════════════════════════
+
+Creado: 2024 | Para: Programación VI | Estudiante: DBA Jr + Licenciatura
