@@ -1,5 +1,8 @@
 package com.proyecto.server;
 
+import com.proyecto.server.ClientHandler;
+import com.proyecto.server.DatabaseManager;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -36,7 +39,7 @@ public class TaskServer {
     private static final int PUERTO = 5555;
     private static final int MAX_CLIENTES = 50;
     private ServerSocket serverSocket;
-    private List<Thread> clientesActivos;
+    private final List<Thread> clientesActivos;
     private boolean ejecutando = true;
     
     public TaskServer() {

@@ -33,7 +33,7 @@ public class TaskClient {
     private Socket socket;
     private PrintWriter salida;
     private BufferedReader entrada;
-    private Scanner scannerLocal;
+    private final Scanner scannerLocal;
     
     /**
      * Constructor que inicializa el scanner local.
