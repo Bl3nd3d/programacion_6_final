@@ -1,6 +1,9 @@
 package com.proyecto.client;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -98,14 +101,7 @@ public class TaskClient {
                 System.out.println(linea);
                 
                 // Si el servidor pide entrada, leer del usuario local
-                if (linea.contains("Ingrese") || 
-                    linea.contains("Seleccione") || 
-                    linea.contains("opción") ||
-                    linea.contains("usuario") ||
-                    linea.contains("contraseña") ||
-                    linea.contains("título") ||
-                    linea.contains("descripción") ||
-                    linea.contains("ID")) {
+                if (linea.trim().endsWith(":")) {
                     
                     // Leer entrada del usuario LOCAL
                     String entrada_usuario = scannerLocal.nextLine();
