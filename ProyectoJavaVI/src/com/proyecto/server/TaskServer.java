@@ -147,6 +147,12 @@ public class TaskServer {
             servidor.detener();
         }));
         
+        try {
+            com.proyecto.web.WebServer.iniciar();
+        } catch (java.io.IOException e) {
+            System.out.println("[SERVIDOR ERROR] No se pudo iniciar la interfaz web: " + e.getMessage());
+        }
+        
         // Iniciar el servidor
         servidor.iniciar();
     }

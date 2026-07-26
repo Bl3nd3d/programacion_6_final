@@ -3,6 +3,8 @@ iniciar servidor:
 cd ProyectoJavaVI
 java -jar target/TaskServer.jar
 
+java -cp "bin;database\mysql-connector-j-9.5.0.jar" com.proyecto.server.TaskServer
+
 iniciar cliente:
 
 cd ProyectoJavaVI
