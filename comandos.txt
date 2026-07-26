@@ -1,0 +1,9 @@
+iniciar servidor:
+
+cd ProyectoJavaVI
+java -jar target/TaskServer.jar
+
+iniciar cliente:
+
+cd ProyectoJavaVI
+java -jar target/TaskClient.jar
