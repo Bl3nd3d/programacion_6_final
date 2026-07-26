@@ -6,8 +6,8 @@ import com.proyecto.server.DatabaseManager;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * TaskServer: SERVIDOR MULTIHILO
@@ -43,7 +43,7 @@ public class TaskServer {
     private boolean ejecutando = true;
     
     public TaskServer() {
-        this.clientesActivos = new ArrayList<>();
+        this.clientesActivos = new CopyOnWriteArrayList<>();
     }
     
     /**
@@ -67,6 +67,9 @@ public class TaskServer {
                     // Si no hay clientes, el servidor permanece aquí
                     Socket socketCliente = serverSocket.accept();
                     
+                    // Purga los threads muertos antes de comparar
+                    clientesActivos.removeIf(t -> !t.isAlive());
+
                     // Verifica límite de clientes
                     if (clientesActivos.size() >= MAX_CLIENTES) {
                         System.out.println("[SERVIDOR] Límite de clientes alcanzado, rechazando conexión");
