@@ -5,6 +5,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * ClientHandler: CLASE CRÍTICA PARA CONCURRENCIA
@@ -28,11 +29,11 @@ public class ClientHandler implements Runnable {
     private Scanner entrada;
     private int idUsuario = -1;
     private String nombreUsuario;
-    private static int contadorClientes = 0;
+    private static final AtomicInteger contadorClientes = new AtomicInteger(0);
     
     public ClientHandler(Socket socket) {
         this.socket = socket;
-        contadorClientes++;
+        contadorClientes.incrementAndGet();
     }
     
     /**
@@ -93,8 +94,8 @@ public class ClientHandler implements Runnable {
             System.out.println("[SERVIDOR ERROR] " + Thread.currentThread().getName() + ": " + e.getMessage());
         } finally {
             cerrarConexion();
-            contadorClientes--;
-            System.out.println("[SERVIDOR] Clientes activos: " + contadorClientes);
+            contadorClientes.decrementAndGet();
+            System.out.println("[SERVIDOR] Clientes activos: " + contadorClientes.get());
         }
     }
     

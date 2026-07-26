@@ -75,36 +75,69 @@ Antes de ejecutar este proyecto, asegúrate de tener instalado:
 
 ### Paso 2: Descargar y Configurar JDBC Driver
 
-1. **Opción A: Descargar manualmente**
-   - Descarga mysql-connector-java-8.0.x.jar desde https://dev.mysql.com/downloads/connector/j/
-   - Coloca el JAR en una carpeta del proyecto (ej: `lib/`)
+El driver JDBC para MySQL es gestionado automáticamente por Maven si utilizas `pom.xml`. Si no estás usando Maven y necesitas compilar manualmente sin él (lo cual no es el enfoque recomendado para este proyecto), entonces puedes descargar el JAR manualmente.
 
-2. **Opción B: Usar Maven**
-   - Si usas Maven, agrega a pom.xml:
-   ```xml
-   <dependency>
-       <groupId>mysql</groupId>
-       <artifactId>mysql-connector-java</artifactId>
-       <version>8.0.33</version>
-   </dependency>
-   ```
+1.  **Usar Maven (Recomendado)**
+    - Asegúrate de que la siguiente dependencia esté en tu `pom.xml`:
+      ```xml
+      <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>8.0.33</version>
+      </dependency>
+      ```
+    - Maven descargará el JAR automáticamente durante el proceso de compilación. No necesitas descargarlo manualmente ni colocarlo en la carpeta `lib/`.
+
+2.  **Opción Manual (Solo si no usas Maven)**
+    - Descarga `mysql-connector-java-8.0.x.jar` desde https://dev.mysql.com/downloads/connector/j/
+    - Coloca el JAR en una carpeta del proyecto (ej: `lib/`)
+
 
 ### Paso 3: Configurar credenciales de Base de Datos
 
-En el archivo `DatabaseManager.java`, modifica estas líneas según tu configuración:
+La configuración de la base de datos se gestiona a través de **variables de entorno**. Esto permite configurar la conexión sin modificar el código fuente, lo cual es una buena práctica.
 
-```java
-private static final String URL = "jdbc:mysql://localhost:3306/task_manager";
-private static final String USER = "root";      // Tu usuario de MySQL
-private static final String PASSWORD = "";      // Tu contraseña de MySQL
+Puedes configurar las siguientes variables antes de ejecutar el servidor:
+
+-   `DB_URL`: La URL de conexión JDBC.
+    -   *Default*: `jdbc:mysql://localhost:3306/task_manager`
+-   `DB_USER`: El usuario de la base de datos.
+    -   *Default*: `root`
+-   `DB_PASSWORD`: La contraseña del usuario.
+    -   *Default*: *(vacío)*
+
+**Ejemplo de cómo iniciar el servidor con configuración personalizada:**
+
+**En Windows (Command Prompt):**
+```cmd
+set DB_URL=jdbc:mysql://mi_host:3306/mi_db
+set DB_USER=mi_usuario
+set DB_PASSWORD=mi_contraseña
+java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.server.TaskServer
 ```
 
-**Nota**: Si usas PostgreSQL en lugar de MySQL, cambia el driver y URL:
-```java
-private static final String URL = "jdbc:postgresql://localhost:5432/task_manager";
+**En Windows (PowerShell):**
+```powershell
+$env:DB_URL="jdbc:mysql://mi_host:3306/mi_db"
+$env:DB_USER="mi_usuario"
+$env:DB_PASSWORD="mi_contraseña"
+java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.server.TaskServer
 ```
 
-## 📦 Compilación del Proyecto
+**En Linux o macOS:**
+```bash
+export DB_URL="jdbc:mysql://mi_host:3306/mi_db"
+export DB_USER="mi_usuario"
+export DB_PASSWORD="mi_contraseña"
+java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.server.TaskServer
+```
+
+Si no se definen estas variables, el sistema usará los valores por defecto que están en `DatabaseManager.java`.
+
+**Nota**: Si usas PostgreSQL en lugar de MySQL, asegúrate de cambiar el `DB_URL` correspondientemente, por ejemplo: `jdbc:postgresql://localhost:5432/task_manager`.
+
+
+# Compilación del Proyecto
 
 ### Opción 1: Con IDE (Recomendado para principiantes)
 
@@ -121,10 +154,6 @@ cd ProyectoJavaVI
 
 # Compila todas las clases
 javac -d bin -cp lib/mysql-connector-java-8.0.33.jar src/com/proyecto/**/*.java
-
-# Si no tienes los drivers descargados, primero:
-# mkdir -p lib
-# wget https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.33.jar -P lib/
 ```
 
 ## 🚀 Ejecución

@@ -18,9 +18,9 @@ import java.util.List;
 public class DatabaseManager {
     private static DatabaseManager instance;
     private Connection conexion;
-    private static final String URL = "jdbc:mysql://localhost:3306/task_manager";
-    private static final String USER = "root";
-    private static final String PASSWORD = ""; // Cambiar según tu configuración
+    private static final String URL = System.getenv().getOrDefault("DB_URL", "jdbc:mysql://localhost:3306/task_manager");
+    private static final String USER = System.getenv().getOrDefault("DB_USER", "root");
+    private static final String PASSWORD = System.getenv().getOrDefault("DB_PASSWORD", ""); // Cambiar según tu configuración
     
     // Constructor privado para Singleton
     private DatabaseManager() {
@@ -58,6 +58,10 @@ public class DatabaseManager {
      * SYNCHRONIZED: Evita que múltiples threads hagan consultas de login simultáneamente
      */
     public synchronized int autenticarUsuario(String usuario, String contrasena) {
+        if (conexion == null) {
+            System.out.println("[BD ERROR] No hay conexión activa");
+            return -1;
+        }
         String query = "SELECT id_usuario FROM usuarios WHERE nombre_usuario = ? AND contrasena = ?";
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setString(1, usuario);
@@ -81,6 +85,10 @@ public class DatabaseManager {
      * SYNCHRONIZED: Garantiza consistencia en lectura mientras otros threads escriben
      */
     public synchronized List<Task> obtenerTareas(int idUsuario) {
+        if (conexion == null) {
+            System.out.println("[BD ERROR] No hay conexión activa");
+            return new ArrayList<>();
+        }
         List<Task> tareas = new ArrayList<>();
         String query = "SELECT * FROM tareas WHERE id_usuario = ? ORDER BY fecha_actualizacion DESC";
         
@@ -109,6 +117,10 @@ public class DatabaseManager {
      * SYNCHRONIZED: Múltiples usuarios pueden intentar crear tareas simultáneamente
      */
     public synchronized boolean crearTarea(int idUsuario, String titulo, String descripcion) {
+        if (conexion == null) {
+            System.out.println("[BD ERROR] No hay conexión activa");
+            return false;
+        }
         String query = "INSERT INTO tareas (id_usuario, titulo, descripcion, estado) VALUES (?, ?, ?, 'PENDIENTE')";
         
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
@@ -133,6 +145,10 @@ public class DatabaseManager {
      * al mismo tiempo. La sincronización previene condiciones de carrera (race conditions).
      */
     public synchronized boolean actualizarEstadoTarea(int idTarea, String nuevoEstado, int idUsuario) {
+        if (conexion == null) {
+            System.out.println("[BD ERROR] No hay conexión activa");
+            return false;
+        }
         String query = "UPDATE tareas SET estado = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_tarea = ? AND id_usuario = ?";
         
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
@@ -156,6 +172,10 @@ public class DatabaseManager {
      * SYNCHRONIZED: Previene que un thread intente eliminar mientras otro lee
      */
     public synchronized boolean eliminarTarea(int idTarea, int idUsuario) {
+        if (conexion == null) {
+            System.out.println("[BD ERROR] No hay conexión activa");
+            return false;
+        }
         String query = "DELETE FROM tareas WHERE id_tarea = ? AND id_usuario = ?";
         
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
@@ -178,6 +198,10 @@ public class DatabaseManager {
      * Útil para debugging de issues concurrentes.
      */
     private synchronized void registrarAuditoria(int idUsuario, String accion, String descripcion) {
+        if (conexion == null) {
+            System.out.println("[BD ERROR] No hay conexión activa para auditoría");
+            return;
+        }
         String query = "INSERT INTO auditoria (id_usuario, accion, descripcion) VALUES (?, ?, ?)";
         
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {

@@ -1,0 +1,5 @@
+com\proyecto\server\ClientHandler.class
+com\proyecto\shared\Task.class
+com\proyecto\server\DatabaseManager.class
+com\proyecto\server\TaskServer.class
+com\proyecto\client\TaskClient.class

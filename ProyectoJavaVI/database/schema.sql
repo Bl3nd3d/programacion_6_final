@@ -1,5 +1,5 @@
 -- Script de Base de Datos para Sistema de Gestión de Tareas
--- Compatible con MySQL y PostgreSQL
+-- Sintaxis específica de MySQL (ENUM, AUTO_INCREMENT)
 
 CREATE DATABASE IF NOT EXISTS task_manager;
 USE task_manager;
