@@ -9,3 +9,29 @@ iniciar cliente:
 
 cd ProyectoJavaVI
 java -jar target/TaskClient.jar
+
+
+
+
+1. Compilar:
+
+powershell
+javac -d bin -cp database\mysql-connector-j-9.5.0.jar (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
+
+2. Levantar el servidor (esto arranca sockets + web juntos):
+
+powershell
+java -cp "bin;database\mysql-connector-j-9.5.0.jar" com.proyecto.server.TaskServer
+
+Tiene que aparecer:
+
+[WEB] Interfaz web disponible en http://localhost:8080
+[SERVIDOR] Escuchando en puerto: 5555
+
+3. Abrir el navegador en:
+
+http://localhost:8080
+
+4. Loguearte con admin/admin123, usuario1/pass123 o usuario2/pass456.
+
+No cierres esa terminal — mientras el proceso siga corriendo, la web queda disponible. Para cortar el servidor: Ctrl+C en esa misma terminal.
