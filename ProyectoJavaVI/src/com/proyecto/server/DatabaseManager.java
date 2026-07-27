@@ -209,35 +209,6 @@ public class DatabaseManager {
         return false;
     }
 
-    public synchronized boolean asignarTareaUsuario(int idTarea, int idUsuarioDestino, int idOwner) {
-        // Verificar que el que asigna es realmente el dueño de la tarea
-        String checkOwner = "SELECT 1 FROM tareas WHERE id_tarea = ? AND id_usuario = ?";
-        try (PreparedStatement pstCheck = getConexionActiva().prepareStatement(checkOwner)) {
-            pstCheck.setInt(1, idTarea);
-            pstCheck.setInt(2, idOwner);
-            try (ResultSet rs = pstCheck.executeQuery()) {
-                if (!rs.next()) {
-                    registrarAuditoria(idOwner, "ERROR_ASIGNACION", "Intento de asignar tarea " + idTarea + " sin ser dueño.");
-                    return false; // No es el creador/admin de esta tarea
-                }
-            }
-        } catch(SQLException e) { return false; }
-
-        // Si es el dueño, se la asigna al usuario destino con INSERT IGNORE para no duplicar
-        String query = "INSERT IGNORE INTO tareas_compartidas (id_tarea, id_usuario, permiso) VALUES (?, ?, 'EDICION')";
-        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
-            pstmt.setInt(1, idTarea);
-            pstmt.setInt(2, idUsuarioDestino);
-            if(pstmt.executeUpdate() > 0) {
-                registrarAuditoria(idOwner, "ASIGNAR_TAREA", "Tarea " + idTarea + " asignada al usuario " + idUsuarioDestino);
-                return true;
-            }
-        } catch (SQLException e) {
-            System.out.println("[BD ERROR] Error al asignar tarea: " + e.getMessage());
-        }
-        return false;
-    }
-
     public synchronized boolean actualizarTarea(int idTarea, int idUsuario, String titulo, String descripcion, String estado) {
         if (!verificarPermisoEdicion(idTarea, idUsuario)) {
             registrarAuditoria(idUsuario, "ERROR_PERMISO", "Intento de actualizar tarea " + idTarea + " sin permiso.");
@@ -300,6 +271,36 @@ public class DatabaseManager {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    // 2. Método para asignar una tarea (solo el dueño puede hacerlo)
+    public synchronized boolean asignarTareaUsuario(int idTarea, int idUsuarioDestino, int idOwner) {
+        // Verificar que el que asigna es realmente el dueño de la tarea
+        String checkOwner = "SELECT 1 FROM tareas WHERE id_tarea = ? AND id_usuario = ?";
+        try (PreparedStatement pstCheck = getConexionActiva().prepareStatement(checkOwner)) {
+            pstCheck.setInt(1, idTarea);
+            pstCheck.setInt(2, idOwner);
+            try (ResultSet rs = pstCheck.executeQuery()) {
+                if (!rs.next()) {
+                    registrarAuditoria(idOwner, "ERROR_ASIGNACION", "Intento de asignar tarea " + idTarea + " sin ser dueño.");
+                    return false; // No es el creador/admin de esta tarea
+                }
+            }
+        } catch(SQLException e) { return false; }
+
+        // Si es el dueño, se la asigna al usuario destino con INSERT IGNORE para no duplicar
+        String query = "INSERT IGNORE INTO tareas_compartidas (id_tarea, id_usuario, permiso) VALUES (?, ?, 'EDICION')";
+        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
+            pstmt.setInt(1, idTarea);
+            pstmt.setInt(2, idUsuarioDestino);
+            if(pstmt.executeUpdate() > 0) {
+                registrarAuditoria(idOwner, "ASIGNAR_TAREA", "Tarea " + idTarea + " asignada al usuario " + idUsuarioDestino);
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("[BD ERROR] Error al asignar tarea: " + e.getMessage());
+        }
+        return false;
     }
 
     // Método auxiliar interno para el JSON de usuarios

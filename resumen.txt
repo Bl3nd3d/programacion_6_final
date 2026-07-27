@@ -1,0 +1,34 @@
+Resumen de Conceptos y Prácticas Implementadas
+Este proyecto es un sistema completo de gestión de tareas que demuestra de manera práctica los siguientes conceptos clave de la programación avanzada y la ingeniería de software:
+
+1. Arquitectura y Diseño de Software
+Arquitectura Cliente-Servidor: El sistema está claramente dividido en:
+Un servidor central (TaskServer) que maneja toda la lógica de negocio y el acceso a datos.
+Múltiples tipos de clientes que se conectan al servidor:
+Un cliente de consola (TaskClient) que se comunica a través de Sockets TCP/IP.
+Un cliente web (servido por WebServer.java) que interactúa a través de una API RESTful sobre HTTP.
+Diseño Orientado a Objetos (POO): El código está organizado en clases con responsabilidades bien definidas (TaskServer, ClientHandler, DatabaseManager, Task).
+Patrón Singleton: La clase DatabaseManager se implementa como un Singleton para asegurar que exista una única instancia que gestione la conexión a la base de datos en toda la aplicación.
+2. Programación Concurrente y Multihilo (Multithreading)
+Modelo "Thread-per-Client": Para los clientes de consola, el TaskServer crea un nuevo hilo (Thread) por cada cliente conectado. Esto permite al servidor atender a múltiples usuarios de forma simultánea y paralela.
+Pool de Hilos (ExecutorService): Para el servidor web, se utiliza un Executors.newCachedThreadPool(), una técnica más moderna y eficiente para gestionar hilos que reutiliza hilos existentes para manejar las peticiones HTTP, mejorando el rendimiento.
+Sincronización y Seguridad de Hilos (Thread Safety):
+Palabra clave synchronized: Todos los métodos en DatabaseManager son synchronized. Esto actúa como un candado (mutex) que previene condiciones de carrera (race conditions), asegurando que solo un hilo pueda ejecutar operaciones en la base de datos a la vez, manteniendo la integridad de los datos.
+Colecciones Concurrentes: Se utilizan clases como ConcurrentHashMap y CopyOnWriteArrayList para gestionar de forma segura listas compartidas entre hilos (como las tareas bloqueadas o los clientes activos).
+Prevención de Bloqueos Mutuos (Deadlocks): El diseño evita deadlocks al centralizar todos los bloqueos de acceso a la base de datos en una única clase (DatabaseManager), lo que impide la "espera circular" entre hilos.
+3. Comunicación en Red
+Sockets TCP/IP: Se utiliza comunicación de bajo nivel con ServerSocket y Socket para la interacción entre el servidor y el cliente de consola, demostrando un control total sobre el protocolo de comunicación.
+Protocolo HTTP y API REST: El WebServer expone una API RESTful con endpoints para login, crear/leer/actualizar/eliminar tareas y gestionar sesiones. Esto permite que cualquier cliente web moderno (en este caso, una página HTML con JavaScript) pueda interactuar con el sistema.
+4. Persistencia de Datos
+Base de Datos Relacional (MySQL): El proyecto utiliza MySQL para almacenar los datos de forma persistente y estructurada.
+JDBC (Java Database Connectivity): La comunicación entre la aplicación Java y la base de datos MySQL se realiza a través de la API de JDBC.
+Diseño de Esquema de BD: El archivo schema.sql define una estructura de base de datos normalizada con tres tablas (usuarios, tareas, auditoria), incluyendo claves foráneas para mantener la integridad referencial e índices para optimizar el rendimiento de las consultas.
+5. Seguridad y Lógica de Negocio
+Autenticación de Usuarios: Se implementa un sistema de login que valida las credenciales del usuario contra la base de datos antes de conceder acceso.
+Gestión de Sesiones: El sistema maneja sesiones de dos maneras:
+Para el cliente de consola, la sesión está ligada a la vida de la conexión del socket.
+Para el cliente web, se utiliza un sistema de tokens de sesión para identificar a los usuarios autenticados en las peticiones HTTP.
+Control de Acceso y Permisos: La lógica de negocio asegura que los usuarios solo puedan ver y modificar sus propias tareas. Además, se implementa una funcionalidad para que el dueño de una tarea pueda asignarla a otro usuario.
+Bloqueo a Nivel de Aplicación: Se implementa un mecanismo de bloqueo explícito que permite a un usuario "reservar" una tarea mientras la edita, impidiendo que otros usuarios la modifiquen simultáneamente.
+Auditoría de Acciones: Se registran eventos importantes (como el bloqueo de una tarea) en una tabla de auditoria, lo cual es una práctica recomendada para el seguimiento y la depuración.
+En resumen, el proyecto no solo cumple con los requisitos básicos de un sistema cliente-servidor, sino que también implementa de forma robusta y profesional conceptos avanzados de concurrencia, sincronización, comunicación en red y buenas prácticas de diseño de software.

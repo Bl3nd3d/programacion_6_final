@@ -35,3 +35,26 @@ http://localhost:8080
 4. Loguearte con admin/admin123, usuario1/pass123 o usuario2/pass456.
 
 No cierres esa terminal — mientras el proceso siga corriendo, la web queda disponible. Para cortar el servidor: Ctrl+C en esa misma terminal.
+
+
+Paso a paso para liberar los puertos
+Busca el número de proceso (PID) que bloquea el puerto 8080:
+En tu terminal, ejecuta el siguiente comando:
+
+PowerShell
+netstat -ano | findstr :8080
+Te devolverá una o más líneas. Fíjate en el último número de la derecha (por ejemplo, 12345). Ese es el Identificador del Proceso (PID).
+
+Fuerza el cierre del proceso:
+Usa el número que encontraste en el paso anterior y ejecuta este comando para matarlo (reemplazando NUMERO_PID por tu número real):
+
+PowerShell
+taskkill /PID NUMERO_PID /F
+Deberías ver un mensaje que dice "Éxito: El proceso con el PID ... ha sido terminado".
+
+Vuelve a iniciar tu servidor:
+Ahora que los puertos están limpios, vuelve a ejecutar tu comando original con normalidad:
+
+PowerShell
+java -cp "bin;database\mysql-connector-j-9.5.0.jar" com.proyecto.server.TaskServer
+Nota: Al matar el proceso que ocupa el puerto 8080, casi con total seguridad también liberarás automáticamente el puerto 5555, ya que ambos pertenecen a la misma instancia atascada de tu servidor Java.
