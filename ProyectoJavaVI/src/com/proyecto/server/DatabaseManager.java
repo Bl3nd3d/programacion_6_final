@@ -5,40 +5,24 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * DatabaseManager: Gestiona todas las operaciones con la base de datos.
- * 
- * IMPORTANTE PARA CONCURRENCIA: Esta clase utiliza métodos synchronized para
- * garantizar que cuando múltiples threads (clientes) intenten acceder a la BD
- * simultáneamente, lo hagan de forma segura sin corrupción de datos.
- * 
- * El patrón Singleton asegura que toda la aplicación use una única conexión
- * compartida y controlada.
- */
 public class DatabaseManager {
     private static DatabaseManager instance;
     private Connection conexion;
     private static final String URL = System.getenv().getOrDefault("DB_URL", "jdbc:mysql://localhost:3306/task_manager");
     private static final String USER = System.getenv().getOrDefault("DB_USER", "root");
-    private static final String PASSWORD = System.getenv().getOrDefault("DB_PASSWORD", ""); // Cambiar según tu configuración
-    
-    // Constructor privado para Singleton
+    private static final String PASSWORD = System.getenv().getOrDefault("DB_PASSWORD", "");
+
     private DatabaseManager() {
         conectarBaseDatos();
     }
-    
-    // Método sincronizado para obtener la instancia (Thread-safe Singleton)
+
     public synchronized static DatabaseManager getInstance() {
         if (instance == null) {
             instance = new DatabaseManager();
         }
         return instance;
     }
-    
-    /**
-     * Conecta a la base de datos.
-     * En un ambiente real, usarías un Connection Pool (HikariCP, etc)
-     */
+
     private void conectarBaseDatos() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
@@ -46,27 +30,16 @@ public class DatabaseManager {
             System.out.println("[BD] Conexión establecida correctamente");
         } catch (ClassNotFoundException e) {
             System.out.println("[BD ERROR] Driver MySQL no encontrado");
-            e.printStackTrace();
         } catch (SQLException e) {
             System.out.println("[BD ERROR] Error al conectar: " + e.getMessage());
-            e.printStackTrace();
         }
     }
-    
-    /**
-     * Autentica un usuario verificando credenciales en BD.
-     * SYNCHRONIZED: Evita que múltiples threads hagan consultas de login simultáneamente
-     */
+
     public synchronized int autenticarUsuario(String usuario, String contrasena) {
-        if (conexion == null) {
-            System.out.println("[BD ERROR] No hay conexión activa");
-            return -1;
-        }
         String query = "SELECT id_usuario FROM usuarios WHERE nombre_usuario = ? AND contrasena = ?";
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setString(1, usuario);
             pstmt.setString(2, contrasena);
-            
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     int idUsuario = rs.getInt("id_usuario");
@@ -77,32 +50,33 @@ public class DatabaseManager {
         } catch (SQLException e) {
             System.out.println("[BD ERROR] Error en autenticación: " + e.getMessage());
         }
-        return -1; // Usuario no encontrado
+        return -1;
     }
-    
-    /**
-     * Obtiene todas las tareas de un usuario específico.
-     * SYNCHRONIZED: Garantiza consistencia en lectura mientras otros threads escriben
-     */
+
     public synchronized List<Task> obtenerTareas(int idUsuario) {
-        if (conexion == null) {
-            System.out.println("[BD ERROR] No hay conexión activa");
-            return new ArrayList<>();
-        }
         List<Task> tareas = new ArrayList<>();
-        String query = "SELECT * FROM tareas WHERE id_usuario = ? ORDER BY fecha_actualizacion DESC";
+        String query = "SELECT t.*, u.nombre_usuario as owner_name FROM tareas t " +
+                       "JOIN usuarios u ON t.owner_id = u.id_usuario " +
+                       "WHERE t.owner_id = ? " +
+                       "UNION " +
+                       "SELECT t.*, u.nombre_usuario as owner_name FROM tareas t " +
+                       "JOIN tareas_compartidas tc ON t.id_tarea = tc.tarea_id " +
+                       "JOIN usuarios u ON t.owner_id = u.id_usuario " +
+                       "WHERE tc.usuario_id = ?";
         
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setInt(1, idUsuario);
-            
+            pstmt.setInt(2, idUsuario);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     Task tarea = new Task();
                     tarea.setIdTarea(rs.getInt("id_tarea"));
-                    tarea.setIdUsuario(rs.getInt("id_usuario"));
+                    tarea.setOwnerId(rs.getInt("owner_id"));
                     tarea.setTitulo(rs.getString("titulo"));
                     tarea.setDescripcion(rs.getString("descripcion"));
                     tarea.setEstado(rs.getString("estado"));
+                    // Opcional: Podrías querer mostrar quién es el dueño.
+                    // tarea.setOwnerName(rs.getString("owner_name")); 
                     tareas.add(tarea);
                 }
             }
@@ -111,25 +85,14 @@ public class DatabaseManager {
         }
         return tareas;
     }
-    
-    /**
-     * Crea una nueva tarea en la base de datos.
-     * SYNCHRONIZED: Múltiples usuarios pueden intentar crear tareas simultáneamente
-     */
+
     public synchronized boolean crearTarea(int idUsuario, String titulo, String descripcion) {
-        if (conexion == null) {
-            System.out.println("[BD ERROR] No hay conexión activa");
-            return false;
-        }
-        String query = "INSERT INTO tareas (id_usuario, titulo, descripcion, estado) VALUES (?, ?, ?, 'PENDIENTE')";
-        
+        String query = "INSERT INTO tareas (owner_id, titulo, descripcion, estado) VALUES (?, ?, ?, 'PENDIENTE')";
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setInt(1, idUsuario);
             pstmt.setString(2, titulo);
             pstmt.setString(3, descripcion);
-            
-            int filasInsertadas = pstmt.executeUpdate();
-            if (filasInsertadas > 0) {
+            if (pstmt.executeUpdate() > 0) {
                 registrarAuditoria(idUsuario, "CREAR_TAREA", "Tarea creada: " + titulo);
                 return true;
             }
@@ -138,26 +101,38 @@ public class DatabaseManager {
         }
         return false;
     }
-    
-    /**
-     * Actualiza el estado de una tarea existente.
-     * CRITICAL SYNCHRONIZED: Dos threads podrían intentar actualizar la misma tarea
-     * al mismo tiempo. La sincronización previene condiciones de carrera (race conditions).
-     */
+
+    public synchronized boolean verificarPermisoEdicion(int idTarea, int idUsuario) {
+        String query = "SELECT t.owner_id, tc.permiso FROM tareas t " +
+                       "LEFT JOIN tareas_compartidas tc ON t.id_tarea = tc.tarea_id AND tc.usuario_id = ? " +
+                       "WHERE t.id_tarea = ?";
+        try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
+            pstmt.setInt(1, idUsuario);
+            pstmt.setInt(2, idTarea);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    boolean esOwner = rs.getInt("owner_id") == idUsuario;
+                    String permiso = rs.getString("permiso");
+                    boolean tienePermisoEdicion = "EDICION".equals(permiso);
+                    return esOwner || tienePermisoEdicion;
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("[BD ERROR] Error al verificar permiso: " + e.getMessage());
+        }
+        return false;
+    }
+
     public synchronized boolean actualizarEstadoTarea(int idTarea, String nuevoEstado, int idUsuario) {
-        if (conexion == null) {
-            System.out.println("[BD ERROR] No hay conexión activa");
+        if (!verificarPermisoEdicion(idTarea, idUsuario)) {
+            registrarAuditoria(idUsuario, "ERROR_PERMISO", "Intento de actualizar tarea " + idTarea + " sin permiso.");
             return false;
         }
-        String query = "UPDATE tareas SET estado = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_tarea = ? AND id_usuario = ?";
-        
+        String query = "UPDATE tareas SET estado = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_tarea = ?";
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setString(1, nuevoEstado);
             pstmt.setInt(2, idTarea);
-            pstmt.setInt(3, idUsuario);
-            
-            int filasActualizadas = pstmt.executeUpdate();
-            if (filasActualizadas > 0) {
+            if (pstmt.executeUpdate() > 0) {
                 registrarAuditoria(idUsuario, "ACTUALIZAR_TAREA", "Tarea " + idTarea + " actualizada a " + nuevoEstado);
                 return true;
             }
@@ -166,24 +141,30 @@ public class DatabaseManager {
         }
         return false;
     }
-    
-    /**
-     * Elimina una tarea del usuario.
-     * SYNCHRONIZED: Previene que un thread intente eliminar mientras otro lee
-     */
+
     public synchronized boolean eliminarTarea(int idTarea, int idUsuario) {
-        if (conexion == null) {
-            System.out.println("[BD ERROR] No hay conexión activa");
-            return false;
+        String checkOwnerQuery = "SELECT owner_id FROM tareas WHERE id_tarea = ?";
+        try (PreparedStatement pstmt = conexion.prepareStatement(checkOwnerQuery)) {
+            pstmt.setInt(1, idTarea);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    if (rs.getInt("owner_id") != idUsuario) {
+                        registrarAuditoria(idUsuario, "ERROR_PERMISO", "Intento de eliminar tarea " + idTarea + " sin ser el dueño.");
+                        return false; // No es el dueño, no puede eliminar
+                    }
+                } else {
+                    return false; // Tarea no existe
+                }
+            }
+        } catch (SQLException e) {
+             System.out.println("[BD ERROR] Error al verificar dueño para eliminar: " + e.getMessage());
+             return false;
         }
-        String query = "DELETE FROM tareas WHERE id_tarea = ? AND id_usuario = ?";
-        
+
+        String query = "DELETE FROM tareas WHERE id_tarea = ?";
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setInt(1, idTarea);
-            pstmt.setInt(2, idUsuario);
-            
-            int filasEliminadas = pstmt.executeUpdate();
-            if (filasEliminadas > 0) {
+            if (pstmt.executeUpdate() > 0) {
                 registrarAuditoria(idUsuario, "ELIMINAR_TAREA", "Tarea " + idTarea + " eliminada");
                 return true;
             }
@@ -192,18 +173,9 @@ public class DatabaseManager {
         }
         return false;
     }
-    
-    /**
-     * Registra acciones en la tabla de auditoría para seguimiento.
-     * Útil para debugging de issues concurrentes.
-     */
+
     private synchronized void registrarAuditoria(int idUsuario, String accion, String descripcion) {
-        if (conexion == null) {
-            System.out.println("[BD ERROR] No hay conexión activa para auditoría");
-            return;
-        }
         String query = "INSERT INTO auditoria (id_usuario, accion, descripcion) VALUES (?, ?, ?)";
-        
         try (PreparedStatement pstmt = conexion.prepareStatement(query)) {
             pstmt.setInt(1, idUsuario);
             pstmt.setString(2, accion);
@@ -213,11 +185,7 @@ public class DatabaseManager {
             System.out.println("[BD ERROR] Error al registrar auditoría: " + e.getMessage());
         }
     }
-    
-    /**
-     * Cierra la conexión a la base de datos.
-     * Se debe llamar al apagar el servidor.
-     */
+
     public synchronized void cerrarConexion() {
         try {
             if (conexion != null && !conexion.isClosed()) {

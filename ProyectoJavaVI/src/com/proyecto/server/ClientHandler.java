@@ -76,7 +76,7 @@ public class ClientHandler implements Runnable {
                         crearTarea();
                         break;
                     case "3":
-                        actualizarEstadoTarea();
+                        sesionDeEdicion();
                         break;
                     case "4":
                         eliminarTarea();
@@ -93,6 +93,10 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("[SERVIDOR ERROR] " + Thread.currentThread().getName() + ": " + e.getMessage());
         } finally {
+            // Liberar bloqueos si el usuario se desconecta de golpe
+            if (nombreUsuario != null) {
+                TaskServer.liberarTodasLasTareasDeUsuario(nombreUsuario);
+            }
             cerrarConexion();
             contadorClientes.decrementAndGet();
             System.out.println("[SERVIDOR] Clientes activos: " + contadorClientes.get());
@@ -136,7 +140,7 @@ public class ClientHandler implements Runnable {
         salida.println("========================================");
         salida.println("1. Listar mis tareas");
         salida.println("2. Crear nueva tarea");
-        salida.println("3. Actualizar estado de tarea");
+        salida.println("3. Editar Tarea (Bloqueante)");
         salida.println("4. Eliminar tarea");
         salida.println("5. Cerrar sesión");
         salida.println("----------------------------------------");
@@ -194,43 +198,97 @@ public class ClientHandler implements Runnable {
      * CRÍTICO: Si dos threads intentan actualizar la MISMA tarea al mismo tiempo,
      * la sincronización en DatabaseManager previene condiciones de carrera.
      */
-    private void actualizarEstadoTarea() {
-        salida.println("Ingrese ID de la tarea a actualizar:");
+    private void sesionDeEdicion() {
+        salida.println("Ingrese ID de la tarea a editar:");
         if (!entrada.hasNextLine()) return;
-        
+
         try {
             int idTarea = Integer.parseInt(entrada.nextLine().trim());
             
-            salida.println("Seleccione nuevo estado:");
-            salida.println("1. PENDIENTE");
-            salida.println("2. EN_PROGRESO");
-            salida.println("3. COMPLETADA");
+            // 0. Verificar permiso ANTES de bloquear
+            boolean tienePermiso = DatabaseManager.getInstance().verificarPermisoEdicion(idTarea, idUsuario);
+            if (!tienePermiso) {
+                salida.println("[ERROR] No tienes permiso para editar esta tarea.");
+                return;
+            }
+
+            // 1. Intentar bloquear la tarea
+            boolean bloqueada = TaskServer.bloquearTarea(idTarea, nombreUsuario);
             
-            if (!entrada.hasNextLine()) return;
-            String opcionEstado = entrada.nextLine().trim();
-            
-            String nuevoEstado = switch (opcionEstado) {
-                case "1" -> "PENDIENTE";
-                case "2" -> "EN_PROGRESO";
-                case "3" -> "COMPLETADA";
-                default -> null;
-            };
-            
-            if (nuevoEstado == null) {
-                salida.println("[ERROR] Estado inválido");
+            if (!bloqueada) {
+                salida.println("[ERROR] La tarea ya está siendo editada por otro usuario.");
                 return;
             }
             
-            // Acceso sincronizado a BD
-            boolean exitoso = DatabaseManager.getInstance().actualizarEstadoTarea(idTarea, nuevoEstado, idUsuario);
+            salida.println("[ÉXITO] Tarea bloqueada para edición.");
             
-            if (exitoso) {
-                salida.println("[ÉXITO] Tarea actualizada a: " + nuevoEstado);
-            } else {
-                salida.println("[ERROR] No se pudo actualizar la tarea");
+            // 2. Sub-menú de edición
+            boolean enEdicion = true;
+            while (enEdicion) {
+                salida.println("\n--- Editando Tarea " + idTarea + " ---");
+                salida.println("1. Actualizar estado");
+                salida.println("2. Guardar y liberar");
+                salida.println("Seleccione opción:");
+
+                if (!entrada.hasNextLine()) {
+                    enEdicion = false; // Salir si el cliente se desconecta
+                    break;
+                }
+                String opcion = entrada.nextLine().trim();
+
+                switch (opcion) {
+                    case "1":
+                        actualizarEstadoTarea(idTarea);
+                        break;
+                    case "2":
+                        enEdicion = false;
+                        break;
+                    default:
+                        salida.println("[ERROR] Opción de edición inválida");
+                }
             }
+            
+            // 3. Liberar la tarea
+            TaskServer.liberarTarea(idTarea, nombreUsuario);
+            salida.println("[ÉXITO] Tarea liberada.");
+
         } catch (NumberFormatException e) {
             salida.println("[ERROR] ID de tarea inválido");
+        }
+    }
+
+    /**
+     * Actualiza el estado de una tarea.
+     * CRÍTICO: Este método asume que la tarea ya está BLOQUEADA por el usuario actual.
+     */
+    private void actualizarEstadoTarea(int idTarea) {
+        salida.println("Seleccione nuevo estado:");
+        salida.println("1. PENDIENTE");
+        salida.println("2. EN_PROGRESO");
+        salida.println("3. COMPLETADA");
+        
+        if (!entrada.hasNextLine()) return;
+        String opcionEstado = entrada.nextLine().trim();
+        
+        String nuevoEstado = switch (opcionEstado) {
+            case "1" -> "PENDIENTE";
+            case "2" -> "EN_PROGRESO";
+            case "3" -> "COMPLETADA";
+            default -> null;
+        };
+        
+        if (nuevoEstado == null) {
+            salida.println("[ERROR] Estado inválido");
+            return;
+        }
+        
+        // Acceso sincronizado a BD
+        boolean exitoso = DatabaseManager.getInstance().actualizarEstadoTarea(idTarea, nuevoEstado, idUsuario);
+        
+        if (exitoso) {
+            salida.println("[ÉXITO] Tarea actualizada a: " + nuevoEstado);
+        } else {
+            salida.println("[ERROR] No se pudo actualizar la tarea (quizás no tienes permiso o fue eliminada).");
         }
     }
     

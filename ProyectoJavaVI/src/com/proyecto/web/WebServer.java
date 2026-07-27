@@ -39,6 +39,9 @@ public class WebServer {
     }
 
     private static void manejarIndex(HttpExchange exchange) throws IOException {
+        System.out.println(
+            "[WEB] Nuevo usuario conectado desde la IP: " + exchange.getRemoteAddress().getAddress().getHostAddress()
+        );
         responder(exchange, 200, "text/html; charset=utf-8", PAGINA_HTML);
     }
 

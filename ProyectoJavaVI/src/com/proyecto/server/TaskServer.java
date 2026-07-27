@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -38,6 +39,35 @@ public class TaskServer {
     private ServerSocket serverSocket;
     private final List<Thread> clientesActivos;
     private boolean ejecutando = true;
+
+    // Mapa: ID de Tarea -> Nombre del Usuario que la está editando
+    private static ConcurrentHashMap<Integer, String> tareasBloqueadas = new ConcurrentHashMap<>();
+
+    // Método para intentar bloquear una tarea
+    public static synchronized boolean bloquearTarea(int idTarea, String usuario) {
+        // Si la tarea ya está bloqueada por OTRA persona, rechazar
+        if (tareasBloqueadas.containsKey(idTarea) && !tareasBloqueadas.get(idTarea).equals(usuario)) {
+            return false; 
+        }
+        // Si está libre, la bloqueamos para este usuario
+        tareasBloqueadas.put(idTarea, usuario);
+        System.out.println("[BLOQUEO] Tarea " + idTarea + " bloqueada por " + usuario);
+        return true;
+    }
+
+    // Método para liberar la tarea cuando termine de editar
+    public static synchronized void liberarTarea(int idTarea, String usuario) {
+        if (usuario.equals(tareasBloqueadas.get(idTarea))) {
+            tareasBloqueadas.remove(idTarea);
+            System.out.println("[DESBLOQUEO] Tarea " + idTarea + " liberada por " + usuario);
+        }
+    }
+    
+    // Método de emergencia si el usuario se desconecta de golpe
+    public static synchronized void liberarTodasLasTareasDeUsuario(String usuario) {
+        tareasBloqueadas.entrySet().removeIf(entry -> entry.getValue().equals(usuario));
+        System.out.println("[BLOQUEO] Tareas del usuario " + usuario + " liberadas por desconexión.");
+    }
     
     public TaskServer() {
         this.clientesActivos = new CopyOnWriteArrayList<>();

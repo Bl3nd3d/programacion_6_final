@@ -12,7 +12,7 @@ public class Task implements Serializable {
     private static final long serialVersionUID = 1L;
     
     private int idTarea;
-    private int idUsuario;
+    private int ownerId;
     private String titulo;
     private String descripcion;
     private String estado; // PENDIENTE, EN_PROGRESO, COMPLETADA
@@ -22,8 +22,8 @@ public class Task implements Serializable {
     // Constructores
     public Task() {}
     
-    public Task(int idUsuario, String titulo, String descripcion) {
-        this.idUsuario = idUsuario;
+    public Task(int ownerId, String titulo, String descripcion) {
+        this.ownerId = ownerId;
         this.titulo = titulo;
         this.descripcion = descripcion;
         this.estado = "PENDIENTE";
@@ -40,12 +40,12 @@ public class Task implements Serializable {
         this.idTarea = idTarea;
     }
     
-    public int getIdUsuario() {
-        return idUsuario;
+    public int getOwnerId() {
+        return ownerId;
     }
     
-    public void setIdUsuario(int idUsuario) {
-        this.idUsuario = idUsuario;
+    public void setOwnerId(int ownerId) {
+        this.ownerId = ownerId;
     }
     
     public String getTitulo() {

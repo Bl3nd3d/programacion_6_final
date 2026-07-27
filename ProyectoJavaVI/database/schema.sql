@@ -16,15 +16,26 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- Tabla de Tareas
 CREATE TABLE IF NOT EXISTS tareas (
     id_tarea INT PRIMARY KEY AUTO_INCREMENT,
-    id_usuario INT NOT NULL,
+    owner_id INT NOT NULL,
     titulo VARCHAR(255) NOT NULL,
     descripcion TEXT,
     estado ENUM('PENDIENTE', 'EN_PROGRESO', 'COMPLETADA') DEFAULT 'PENDIENTE',
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
-    INDEX idx_usuario (id_usuario),
+    FOREIGN KEY (owner_id) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+    INDEX idx_owner (owner_id),
     INDEX idx_estado (estado)
+);
+
+-- Tabla para manejar permisos de tareas compartidas
+CREATE TABLE IF NOT EXISTS tareas_compartidas (
+    id_compartido INT PRIMARY KEY AUTO_INCREMENT,
+    tarea_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    permiso ENUM('LECTURA', 'EDICION') NOT NULL,
+    FOREIGN KEY (tarea_id) REFERENCES tareas(id_tarea) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+    UNIQUE KEY uq_tarea_usuario (tarea_id, usuario_id) -- Evita duplicados
 );
 
 -- Tabla de Auditoría (para registrar acciones concurrentes)
@@ -43,7 +54,7 @@ INSERT INTO usuarios (nombre_usuario, contrasena, email) VALUES
 ('usuario1', 'pass123', 'usuario1@empresa.com'),
 ('usuario2', 'pass456', 'usuario2@empresa.com');
 
-INSERT INTO tareas (id_usuario, titulo, descripcion, estado) VALUES
+INSERT INTO tareas (owner_id, titulo, descripcion, estado) VALUES
 (1, 'Configurar Servidor', 'Implementar servidor multihilo', 'EN_PROGRESO'),
 (1, 'Pruebas de Carga', 'Realizar pruebas de concurrencia', 'PENDIENTE'),
 (2, 'Documentación API', 'Escribir documentación completa', 'PENDIENTE');
