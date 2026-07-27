@@ -68,6 +68,21 @@ public class DatabaseManager {
         return -1;
     }
 
+    public synchronized String getUsername(int idUsuario) {
+        String query = "SELECT nombre_usuario FROM usuarios WHERE id_usuario = ?";
+        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
+            pstmt.setInt(1, idUsuario);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("nombre_usuario");
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("[BD ERROR] Error al obtener nombre de usuario: " + e.getMessage());
+        }
+        return null;
+    }
+
     public synchronized List<Task> obtenerTareas(int idUsuario) {
         List<Task> tareas = new ArrayList<>();
         String query = "SELECT t.*, u.nombre_usuario as owner_name FROM tareas t " +
@@ -116,24 +131,31 @@ public class DatabaseManager {
     }
 
     public synchronized boolean verificarPermisoEdicion(int idTarea, int idUsuario) {
-        String query = "SELECT t.id_usuario, tc.permiso FROM tareas t " +
-                       "LEFT JOIN tareas_compartidas tc ON t.id_tarea = tc.id_tarea AND tc.id_usuario = ? " +
-                       "WHERE t.id_tarea = ?";
-        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
-            pstmt.setInt(1, idUsuario);
-            pstmt.setInt(2, idTarea);
+        boolean tienePermiso = false;
+        
+        // Consulta SQL que verifica ambas condiciones
+        String sql = "SELECT 1 FROM tareas WHERE id_tarea = ? AND id_usuario = ? " +
+                     "UNION " +
+                     "SELECT 1 FROM tareas_compartidas WHERE id_tarea = ? AND id_usuario = ? AND permiso = 'EDICION'";
+
+        try (Connection conn = getConexionActiva();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, idTarea);
+            pstmt.setInt(2, idUsuario);
+            pstmt.setInt(3, idTarea);
+            pstmt.setInt(4, idUsuario);
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    boolean esOwner = rs.getInt("id_usuario") == idUsuario;
-                    String permiso = rs.getString("permiso");
-                    boolean tienePermisoEdicion = "EDICION".equals(permiso);
-                    return esOwner || tienePermisoEdicion;
+                    tienePermiso = true; // Si la consulta devuelve al menos una fila, tiene permiso
                 }
             }
         } catch (SQLException e) {
-            System.out.println("[BD ERROR] Error al verificar permiso: " + e.getMessage());
+            System.out.println("[BD ERROR] Error verificando permisos: " + e.getMessage());
         }
-        return false;
+        
+        return tienePermiso;
     }
 
     public synchronized boolean actualizarEstadoTarea(int idTarea, String nuevoEstado, int idUsuario) {
@@ -187,7 +209,57 @@ public class DatabaseManager {
         return false;
     }
 
-    private synchronized void registrarAuditoria(int idUsuario, String accion, String descripcion) {
+    public synchronized boolean asignarTareaUsuario(int idTarea, int idUsuarioDestino, int idOwner) {
+        // Verificar que el que asigna es realmente el dueño de la tarea
+        String checkOwner = "SELECT 1 FROM tareas WHERE id_tarea = ? AND id_usuario = ?";
+        try (PreparedStatement pstCheck = getConexionActiva().prepareStatement(checkOwner)) {
+            pstCheck.setInt(1, idTarea);
+            pstCheck.setInt(2, idOwner);
+            try (ResultSet rs = pstCheck.executeQuery()) {
+                if (!rs.next()) {
+                    registrarAuditoria(idOwner, "ERROR_ASIGNACION", "Intento de asignar tarea " + idTarea + " sin ser dueño.");
+                    return false; // No es el creador/admin de esta tarea
+                }
+            }
+        } catch(SQLException e) { return false; }
+
+        // Si es el dueño, se la asigna al usuario destino con INSERT IGNORE para no duplicar
+        String query = "INSERT IGNORE INTO tareas_compartidas (id_tarea, id_usuario, permiso) VALUES (?, ?, 'EDICION')";
+        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
+            pstmt.setInt(1, idTarea);
+            pstmt.setInt(2, idUsuarioDestino);
+            if(pstmt.executeUpdate() > 0) {
+                registrarAuditoria(idOwner, "ASIGNAR_TAREA", "Tarea " + idTarea + " asignada al usuario " + idUsuarioDestino);
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("[BD ERROR] Error al asignar tarea: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public synchronized boolean actualizarTarea(int idTarea, int idUsuario, String titulo, String descripcion, String estado) {
+        if (!verificarPermisoEdicion(idTarea, idUsuario)) {
+            registrarAuditoria(idUsuario, "ERROR_PERMISO", "Intento de actualizar tarea " + idTarea + " sin permiso.");
+            return false;
+        }
+        String query = "UPDATE tareas SET titulo = ?, descripcion = ?, estado = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_tarea = ?";
+        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
+            pstmt.setString(1, titulo);
+            pstmt.setString(2, descripcion);
+            pstmt.setString(3, estado);
+            pstmt.setInt(4, idTarea);
+            if (pstmt.executeUpdate() > 0) {
+                registrarAuditoria(idUsuario, "ACTUALIZAR_TAREA_COMPLETA", "Tarea " + idTarea + " actualizada.");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("[BD ERROR] Error al actualizar tarea: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public synchronized void registrarAuditoria(int idUsuario, String accion, String descripcion) {
         String query = "INSERT INTO auditoria (id_usuario, accion, descripcion) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query)) {
             pstmt.setInt(1, idUsuario);
@@ -208,5 +280,31 @@ public class DatabaseManager {
         } catch (SQLException e) {
             System.out.println("[BD ERROR] Error al cerrar conexión: " + e.getMessage());
         }
+    }
+
+    // 1. Método para obtener todos los usuarios y mostrarlos en el frontend
+    public synchronized String obtenerUsuariosJson() {
+        StringBuilder sb = new StringBuilder("[");
+        String query = "SELECT id_usuario, nombre_usuario FROM usuarios";
+        try (PreparedStatement pstmt = getConexionActiva().prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            boolean primero = true;
+            while (rs.next()) {
+                if (!primero) sb.append(",");
+                sb.append("{\"idUsuario\":").append(rs.getInt("id_usuario"))
+                  .append(",\"nombreUsuario\":\"").append(escaparJson(rs.getString("nombre_usuario"))).append("\"}");
+                primero = false;
+            }
+        } catch (SQLException e) {
+            System.out.println("[BD ERROR] Error al obtener usuarios: " + e.getMessage());
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    // Método auxiliar interno para el JSON de usuarios
+    private String escaparJson(String texto) {
+        if (texto == null) return "";
+        return texto.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 }

@@ -206,51 +206,55 @@ public class ClientHandler implements Runnable {
             int idTarea = Integer.parseInt(entrada.nextLine().trim());
             
             // 0. Verificar permiso ANTES de bloquear
-            boolean tienePermiso = DatabaseManager.getInstance().verificarPermisoEdicion(idTarea, idUsuario);
-            if (!tienePermiso) {
+            if (!DatabaseManager.getInstance().verificarPermisoEdicion(idTarea, idUsuario)) {
                 salida.println("[ERROR] No tienes permiso para editar esta tarea.");
                 return;
             }
 
-            // 1. Intentar bloquear la tarea
-            boolean bloqueada = TaskServer.bloquearTarea(idTarea, nombreUsuario);
-            
-            if (!bloqueada) {
+            // 1. Intentar bloquear la tarea y registrar auditoría
+            if (TaskServer.bloquearTarea(idTarea, nombreUsuario)) {
+                
+                DatabaseManager.getInstance().registrarAuditoria(
+                    idUsuario, 
+                    "BLOQUEO_EDICION", 
+                    "El usuario bloqueó la tarea ID " + idTarea + " para editarla."
+                );
+                
+                salida.println("[ÉXITO] Tarea bloqueada para edición.");
+                
+                // 2. Sub-menú de edición
+                boolean enEdicion = true;
+                while (enEdicion) {
+                    salida.println("\n--- Editando Tarea " + idTarea + " ---");
+                    salida.println("1. Actualizar estado");
+                    salida.println("2. Guardar y liberar");
+                    salida.println("Seleccione opción:");
+
+                    if (!entrada.hasNextLine()) {
+                        enEdicion = false; // Salir si el cliente se desconecta
+                        break;
+                    }
+                    String opcion = entrada.nextLine().trim();
+
+                    switch (opcion) {
+                        case "1":
+                            actualizarEstadoTarea(idTarea);
+                            break;
+                        case "2":
+                            enEdicion = false;
+                            break;
+                        default:
+                            salida.println("[ERROR] Opción de edición inválida");
+                    }
+                }
+                
+                // 3. Liberar la tarea
+                TaskServer.liberarTarea(idTarea, nombreUsuario);
+                salida.println("[ÉXITO] Tarea liberada.");
+
+            } else {
                 salida.println("[ERROR] La tarea ya está siendo editada por otro usuario.");
-                return;
             }
-            
-            salida.println("[ÉXITO] Tarea bloqueada para edición.");
-            
-            // 2. Sub-menú de edición
-            boolean enEdicion = true;
-            while (enEdicion) {
-                salida.println("\n--- Editando Tarea " + idTarea + " ---");
-                salida.println("1. Actualizar estado");
-                salida.println("2. Guardar y liberar");
-                salida.println("Seleccione opción:");
-
-                if (!entrada.hasNextLine()) {
-                    enEdicion = false; // Salir si el cliente se desconecta
-                    break;
-                }
-                String opcion = entrada.nextLine().trim();
-
-                switch (opcion) {
-                    case "1":
-                        actualizarEstadoTarea(idTarea);
-                        break;
-                    case "2":
-                        enEdicion = false;
-                        break;
-                    default:
-                        salida.println("[ERROR] Opción de edición inválida");
-                }
-            }
-            
-            // 3. Liberar la tarea
-            TaskServer.liberarTarea(idTarea, nombreUsuario);
-            salida.println("[ÉXITO] Tarea liberada.");
 
         } catch (NumberFormatException e) {
             salida.println("[ERROR] ID de tarea inválido");
