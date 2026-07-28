@@ -11,22 +11,19 @@ cd ProyectoJavaVI
 java -jar target/TaskClient.jar
 
 
-
+################################################################################################################################
 
 1. Compilar:
 
-powershell
-javac -d bin -cp database\mysql-connector-j-9.5.0.jar (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
+javac -encoding UTF-8 -d bin -cp database\mysql-connector-j-9.5.0.jar (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
 
 2. Levantar el servidor (esto arranca sockets + web juntos):
 
-powershell
 java -cp "bin;database\mysql-connector-j-9.5.0.jar" com.proyecto.server.TaskServer
 
 Tiene que aparecer:
 
 [WEB] Interfaz web disponible en http://localhost:8080
-[SERVIDOR] Escuchando en puerto: 5555
 
 3. Abrir el navegador en:
 
@@ -38,23 +35,27 @@ No cierres esa terminal — mientras el proceso siga corriendo, la web queda dis
 
 
 Paso a paso para liberar los puertos
-Busca el número de proceso (PID) que bloquea el puerto 8080:
-En tu terminal, ejecuta el siguiente comando:
 
-PowerShell
+
 netstat -ano | findstr :8080
+
 Te devolverá una o más líneas. Fíjate en el último número de la derecha (por ejemplo, 12345). Ese es el Identificador del Proceso (PID).
 
 Fuerza el cierre del proceso:
+
+taskkill /PID 12345 /F
+
 Usa el número que encontraste en el paso anterior y ejecuta este comando para matarlo (reemplazando NUMERO_PID por tu número real):
 
-PowerShell
 taskkill /PID NUMERO_PID /F
+
 Deberías ver un mensaje que dice "Éxito: El proceso con el PID ... ha sido terminado".
 
 Vuelve a iniciar tu servidor:
+
 Ahora que los puertos están limpios, vuelve a ejecutar tu comando original con normalidad:
 
-PowerShell
+
 java -cp "bin;database\mysql-connector-j-9.5.0.jar" com.proyecto.server.TaskServer
+
 Nota: Al matar el proceso que ocupa el puerto 8080, casi con total seguridad también liberarás automáticamente el puerto 5555, ya que ambos pertenecen a la misma instancia atascada de tu servidor Java.
