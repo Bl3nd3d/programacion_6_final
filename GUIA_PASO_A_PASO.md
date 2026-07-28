@@ -54,6 +54,7 @@ TuProyecto/
 │   └── com/proyecto/
 │       ├── server/
 │       ├── client/
+│       ├── web/
 │       └── shared/
 ├── bin/                 (se crea automaticamente)
 ├── lib/                 (para JDBC driver)
@@ -67,7 +68,7 @@ TuProyecto/
 **En Windows**: Crea estas carpetas en Explorador de Archivos
 **En Mac/Linux**: En terminal, ejecuta:
 ```bash
-mkdir -p TuProyecto/src/com/proyecto/{server,client,shared}
+mkdir -p TuProyecto/src/com/proyecto/{server,client,shared,web}
 mkdir -p TuProyecto/lib
 mkdir -p TuProyecto/database
 cd TuProyecto
@@ -112,7 +113,9 @@ src/com/proyecto/
 ├── server/
 │   ├── TaskServer.java
 │   ├── ClientHandler.java
-│   └── DatabaseManager.java
+│   └── DatabaseManager.java 
+├── web/
+│   └── WebServer.java
 ├── client/
 │   └── TaskClient.java
 └── shared/

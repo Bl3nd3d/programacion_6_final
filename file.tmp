@@ -136,7 +136,7 @@ Thread_A (Usuario A)              Thread_B (Usuario B)
 RESULTADO: IDs únicos 10 y 11     ✓ BASE DE DATOS CONSISTENTE
 ```
 
-### Implementación en DatabaseManager.java
+#### Implementación en `DatabaseManager.java`
 
 Todos los métodos de DatabaseManager están sincronizados:
 
@@ -186,7 +186,7 @@ RESULTADO: Ambos esperan infinitamente 🔒🔒
 Sistema CONGELADO
 ```
 
-### Cómo Evitamos Deadlocks
+### ¿Cómo se evitan los Deadlocks en este proyecto?
 
 **Nuestro diseño es DEADLOCK-FREE porque:**
 
@@ -203,9 +203,8 @@ ClientHandler_A → DatabaseManager (Candado único) → BD
 ClientHandler_B → DatabaseManager (Candado único) → BD
 ```
 
----
 
-## 4. FLUJO COMPLETO DE CONCURRENCIA
+## 5. Flujo Completo de una Petición
 
 Veamos paso a paso cómo funciona:
 
@@ -265,55 +264,8 @@ TIEMPO    USUARIO A                    BD                      USUARIO B
 - Línea 12ms: Usuario A procesa su consulta
 - Línea 14ms: Solo después, Usuario B puede acceder
 
----
 
-## 5. EVIDENCIA EN EL CÓDIGO
-
-Cuando demuestres en el examen, señala estos puntos específicos:
-
-### A. CREACIÓN DE THREADS (TaskServer.java)
-
-```java
-// MULTITHREADING EVIDENCE
-for (int i = 0; i < 100; i++) {
-    new Thread(() -> {
-        ClientHandler handler = new ClientHandler(socket);
-        handler.run();
-    }).start();
-}
-// Resultado: 100 threads ejecutándose en paralelo
-```
-
-### B. SINCRONIZACIÓN (DatabaseManager.java)
-
-```java
-// SYNCHRONIZATION EVIDENCE
-public synchronized int autenticarUsuario(String usuario, String contrasena) {
-    // SYNCHRONIZED = un thread a la vez
-    String query = "SELECT id_usuario FROM usuarios WHERE nombre_usuario = ? AND contrasena = ?";
-    // Si dos threads llaman esto simultáneamente, uno espera
-}
-```
-
-### C. MANEJO DE THREADS (ClientHandler.java)
-
-```java
-// THREAD EVIDENCE
-@Override
-public void run() {
-    // Este código corre en su PROPIO thread
-    // Cada cliente obtiene una copia de este método
-    mostrarMenuLogin();
-    boolean activo = true;
-    while (activo) {
-        // Procesa comandos del cliente en paralelo con otros
-    }
-}
-```
-
----
-
-## 6. CÓMO VERIFICAR QUE FUNCIONA
+## 6. Cómo Verificar que Funciona
 
 ### Test 1: Ver threads en servidor
 
@@ -329,13 +281,12 @@ Mientras ejecutas el servidor, abre 3 clientes:
 
 ### Test 2: Operaciones simultáneas sin corrupción
 
-1. Abre 2 clientes como "usuario1" y "usuario2"
-2. Cliente 1: Crear tarea "Tarea A"
-3. Cliente 2: Crear tarea "Tarea B"
-4. Cliente 1: Listar tareas (debe ver solo "Tarea A")
-5. Cliente 2: Listar tareas (debe ver solo "Tarea B")
+1. Abre un cliente de consola con "usuario1".
+2. Abre la interfaz web en un navegador con "usuario2".
+3. Intenta crear una tarea desde la consola y otra desde la web exactamente al mismo tiempo.
+4. Verifica en la base de datos que ambas tareas se crearon con IDs únicos y consecutivos.
 
-**Resultado esperado**: Ambas tareas creadas correctamente sin ID duplicados.
+**Resultado esperado**: Ambas tareas se crean correctamente sin corrupción de datos.
 **Explicación**: Sincronización previno race condition.
 
 ### Test 3: Stress test de concurrencia
@@ -350,83 +301,50 @@ done
 
 **Resultado**: Todos logran crear tareas sin corrupción de datos.
 
----
 
-## 7. COMPARACIÓN: CON vs SIN SINCRONIZACIÓN
-
-### SIN SYNCHRONIZED (INCORRECTO - DO NOT USE)
-
-```java
-public int autenticarUsuario(String usuario, String contrasena) {
-    // Sin synchronized
-    Thread.sleep(1000); // Simula procesamiento
-    return loginIncorrecto;
-}
-
-// Resultado: 2 threads pueden estar en este método al mismo tiempo
-// → Datos corruptos, resultados impredecibles
-```
-
-### CON SYNCHRONIZED (CORRECTO - USADO EN PROYECTO)
-
-```java
-public synchronized int autenticarUsuario(String usuario, String contrasena) {
-    // Con synchronized
-    Thread.sleep(1000); // Simula procesamiento
-    return loginCorrecto;
-}
-
-// Resultado: Solo 1 thread a la vez ejecuta esto
-// → Datos consistentes, resultado predecible
-```
-
----
-
-## 8. RESPUESTAS ESPERADAS EN EL EXAMEN
+## 7. Respuestas Clave para el Examen
 
 **Pregunta: "¿Dónde está la concurrencia en tu proyecto?"**
 
 Respuesta:
-> "La concurrencia está implementada en dos niveles. Primero, en TaskServer.java línea 69, cada cliente que se conecta obtiene su propio thread mediante `new Thread(manejador).start()`. Esto permite que cientos de clientes se ejecuten simultáneamente. Segundo, en DatabaseManager.java, todos los métodos son synchronized para prevenir race conditions cuando múltiples threads acceden a la base de datos. Específicamente, si dos usuarios intentan crear tareas al mismo tiempo, el synchronized asegura que un thread obtiene el candado, modifica la BD, y libera el candado antes de que el otro thread acceda."
+> "La concurrencia está implementada en tres niveles. Primero, en `TaskServer.java`, uso un modelo 'Thread-per-Client' para los clientes de consola. Segundo, y más avanzado, en `WebServer.java` uso un `ExecutorService` con un pool de hilos para manejar eficientemente las peticiones de la API REST. Tercero, para la seguridad de los datos, todos los métodos de `DatabaseManager` son `synchronized` para prevenir 'race conditions' en la base de datos."
 
 **Pregunta: "¿Qué hubiera pasado sin sincronización?"**
 
 Respuesta:
-> "Sin sincronización, ocurriría un race condition. Dos threads podrían leer el mismo contador, incrementarlo, y escribir el mismo valor, resultando en pérdida de datos. Más grave aún, dos inserts simultáneos podrían crear registros con IDs duplicados, corrompiendo la integridad referencial de la base de datos."
+> "Sin `synchronized` en `DatabaseManager`, tendríamos 'race conditions' que corromperían la base de datos. Por ejemplo, dos inserciones simultáneas podrían resultar en tareas con el mismo ID. Además, sin el sistema de bloqueo a nivel de aplicación, dos usuarios podrían editar la misma tarea a la vez, y el cambio de uno sobrescribiría al del otro, causando pérdida de datos."
 
 **Pregunta: "¿Cómo evitas deadlocks?"**
 
 Respuesta:
 > "El diseño previene deadlocks porque todos los locks están centralizados en DatabaseManager, no hay locks anidados, y todos los threads usan el mismo patrón de acceso. Un thread nunca mantiene un lock esperando por otro lock que otro thread posee, lo que elimina la condición de circular wait."
 
----
 
-## 9. TÉRMINOS TÉCNICOS IMPORTANTES
+## 8. Términos Técnicos Importantes
 
 | Término | Significado | Dónde en el código |
 |---------|-------------|-------------------|
 | **Thread** | Hilo de ejecución independiente | TaskServer, ClientHandler |
-| **Concurrencia** | Múltiples tareas ejecutándose aparentemente simultáneamente | Todos los ClientHandler.run() en paralelo |
+| **ExecutorService** | Framework para gestionar pools de hilos | `WebServer.java` |
 | **Synchronized** | Candado que asegura un thread a la vez | DatabaseManager métodos |
 | **Mutex** | Mutual Exclusion, lo mismo que synchronized | Implementado con synchronized keyword |
 | **Race Condition** | Comportamiento impredecible por timing de threads | Prevenido por synchronized |
 | **Deadlock** | Threads bloqueados esperándose mutuamente | Prevenido por diseño single-lock |
 | **Atomic Operation** | Operación que no puede ser interrumpida | Toda la operación dentro de synchronized |
-| **Context Switch** | SO cambia de thread activo | Ocurre constantemente, transparentemente |
+| **ConcurrentHashMap** | Colección segura para hilos, usada para bloqueos | `TaskServer.java` |
 
 ---
 
-## 10. CONCLUSIÓN
+## 9. Conclusión
 
-Este proyecto demuestra **dominion completo de programación concurrente** a través de:
+Este proyecto demuestra un **dominio completo de la programación concurrente** al implementar y contrastar soluciones para diferentes escenarios:
 
-1. ✓ Creación explícita de threads para múltiples clientes
-2. ✓ Sincronización de recursos compartidos (BD)
-3. ✓ Prevención de race conditions y deadlocks
-4. ✓ Diseño escalable (soporta 100+ clientes simultáneos)
-5. ✓ Integridad de datos bajo concurrencia extrema
+1.  ✓ **Manejo de clientes persistentes** (Sockets) con un modelo `Thread-per-Client`.
+2.  ✓ **Manejo de clientes efímeros** (HTTP) con un `ThreadPool` (`ExecutorService`), que es la práctica estándar de la industria.
+3.  ✓ **Garantía de integridad de datos** a nivel de base de datos con `synchronized`.
+4.  ✓ **Coordinación de acciones de usuario** con un sistema de bloqueo a nivel de aplicación.
 
-Cuando el profesor observe 5+ clientes modificando datos simultáneamente sin corrupción, quedará claro que la concurrencia está correctamente implementada.
+Cuando el profesor observe a un cliente de consola y a un cliente web interactuando simultáneamente con el sistema sin corrupción de datos, quedará claro que la concurrencia está implementada de forma robusta y profesional.
 
 ---
 

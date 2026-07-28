@@ -17,32 +17,39 @@ Un **sistema completo de gestión de tareas distribuidas** implementado en Java 
 
 ### Archivos Java (5 archivos)
 
-Estos son tus archivos de código fuente, el núcleo del proyecto:
+Estos son tus archivos de código fuente, el núcleo del proyecto. Ahora incluye un servidor web.
 
 **1. Task.java** (Clase de Datos)
 - Define la estructura de una tarea
 - POJO (Plain Old Java Object) que viaja entre cliente y servidor
 - Implementa Serializable para transmisión de red
 
-**2. DatabaseManager.java** (Gestor de Base de Datos) ⭐ CRÍTICO
+**2. DatabaseManager.java** (Gestor de Base de Datos) ⭐ CRÍTICO (SINCRONIZACIÓN)
 - Maneja toda la comunicación con MySQL
 - **TODOS los métodos son `synchronized`** - esto es lo que demuestra sincronización
 - Previene race conditions (dos threads modificando BD simultáneamente)
 - Es un Singleton (una única instancia en toda la aplicación)
 
-**3. ClientHandler.java** (Manejador de Cliente) ⭐ CRÍTICO
+-**3. ClientHandler.java** (Manejador de Cliente de Consola) ⭐ CRÍTICO (CONCURRENCIA)
 - Implementa `Runnable`, lo que permite que corra en su propio thread
 - Cada cliente conectado obtiene una **NUEVA instancia de ClientHandler**
 - Corre en su **PROPIO thread** de manera independiente
 - Procesa todos los comandos del cliente (login, crear tarea, etc.)
 
-**4. TaskServer.java** (Servidor Multihilo) ⭐ CRÍTICO
+-**4. TaskServer.java** (Servidor Principal) ⭐ CRÍTICO (ARQUITECTURA)
 - Crea un `ServerSocket` que escucha conexiones en puerto 5555
 - Para cada cliente que se conecta, crea un **NUEVO thread** con ClientHandler
+- **Inicia también el servidor web** en el puerto 8080
 - Permite que 100+ clientes se conecten simultáneamente
 - Cada uno corre en su propio thread sin bloquear a los otros
 
-**5. TaskClient.java** (Cliente de Consola)
+-**5. WebServer.java** (Servidor Web con API REST) ⭐ CRÍTICO (CONCURRENCIA AVANZADA)
+- Crea un servidor HTTP en el puerto 8080 usando `com.sun.net.httpserver`.
+- Expone una **API RESTful** para interactuar con las tareas desde una interfaz web.
+- Utiliza un **`ExecutorService` (ThreadPool)** para manejar las peticiones HTTP, una técnica más moderna y eficiente que "un thread por cliente".
+- Sirve una página HTML con JavaScript que funciona como un cliente web completo.
+
+**6. TaskClient.java** (Cliente de Consola)
 - Se conecta al servidor usando Socket
 - Permite al usuario hacer login e interactuar con sus tareas
 - Interfaz de línea de comandos simple pero funcional
@@ -81,14 +88,17 @@ Estos son tus archivos de código fuente, el núcleo del proyecto:
 
 ### ✅ Cumple TODOS los requisitos
 
-1. **Lógica de Negocio**: Gestión de tareas colaborativas
+1. **Lógica de Negocio**: Gestión de tareas colaborativas con bloqueo
    - Usuarios pueden crear, listar, actualizar y eliminar tareas
    - Cada usuario solo ve sus propias tareas
+   - **Funcionalidad avanzada**: El dueño de una tarea puede asignarla a otro usuario.
+   - **Funcionalidad avanzada**: Bloqueo de tareas a nivel de aplicación para evitar ediciones simultáneas.
    - Hay tabla de auditoría que registra todas las acciones
 
-2. **Arquitectura Cliente-Servidor**: Arquitectura clara y separada
+2. **Arquitectura Cliente-Servidor DUAL**: Dos tipos de clientes
+   - **Cliente de Consola**: `TaskClient` se conecta a `TaskServer` por Sockets TCP/IP.
    - Servidor escucha en puerto 5555
-   - Clientes se conectan y comunican mediante sockets TCP/IP
+   - **Cliente Web**: Un navegador se conecta a `WebServer` por HTTP y consume una API REST.
    - Comunicación bidireccional: cliente envía comandos, servidor responde
 
 3. **Login de Usuario**: Autenticación en base de datos
@@ -101,15 +111,20 @@ Estos son tus archivos de código fuente, el núcleo del proyecto:
    - `tareas`: almacena datos de tareas
    - `auditoria`: registra todas las acciones para debugging
 
-5. **Programación Concurrente**: Implementación profesional
-   - Múltiples threads (uno por cliente)
+5. **Programación Concurrente (2 Modelos)**: Implementación profesional
+   - **Modelo 1 (Thread-per-Client)**: En `TaskServer`, un nuevo thread por cada cliente de consola.
+   - **Modelo 2 (Thread Pool)**: En `WebServer`, un `ExecutorService` reutiliza threads para manejar eficientemente las peticiones web.
    - Sincronización explícita con keyword `synchronized`
-   - Prevención de race conditions y deadlocks
+   - Prevención de race conditions y deadlocks.
 
 6. **Funcional en el Examen**: Código compilado y testeado
    - Todo está escrito, compilado y probado
    - No hay bugs conocidos
    - Diseño robusto que maneja errores
+
+-**7. Interfaz Web Moderna**:
+   - Una interfaz web (SPA) funcional servida directamente desde Java.
+   - Demuestra conocimiento de APIs REST y comunicación HTTP.
 
 ### 🏆 Ventajas sobre otros proyectos
 
@@ -118,6 +133,7 @@ Estos son tus archivos de código fuente, el núcleo del proyecto:
 - La sincronización es el núcleo del proyecto, no una ocurrencia tardía
 - Incluye documentación técnica para defender en el examen
 - Código limpio, comentado, y educativo (no confuso)
+- **Demuestra dos modelos de concurrencia**: el clásico "thread-per-client" y el moderno "thread pool".
 
 ---
 
@@ -132,8 +148,9 @@ Estos son tus archivos de código fuente, el núcleo del proyecto:
 5. Copia `schema.sql` a carpeta `database/`
 6. Ejecuta el script SQL en MySQL
 7. **Compila**: `javac -d bin -cp lib/* src/com/proyecto/**/*.java`
-8. **Ejecuta servidor**: `java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.server.TaskServer`
-9. **Ejecuta clientes**: `java -cp bin:lib/mysql-connector-java-8-0-33.jar com.proyecto.client.TaskClient`
+8. **Ejecuta servidor (inicia AMBOS, consola y web)**: `java -cp bin:lib/mysql-connector-java-8.0.33.jar com.proyecto.server.TaskServer`
+9. **Ejecuta clientes de consola**: `java -cp bin:lib/mysql-connector-java-8-0-33.jar com.proyecto.client.TaskClient` (en nuevas terminales)
+10. **Abre el cliente web**: Abre tu navegador y ve a `http://localhost:8080`
 
 ### Opción 2: En el laboratorio de la universidad
 
@@ -154,15 +171,16 @@ Si quieres seguridad extra, puedes usar Docker para crear un ambiente completame
 
 ### Concepto 1: Threads
 
-Un thread es como un "mini-programa" que corre dentro de tu aplicación. Si tu servidor crea un thread por cliente, puede manejar múltiples clientes simultáneamente. Sin threads, solo podría manejar uno a la vez.
+Un thread es como un "mini-programa" que corre dentro de tu aplicación. Tu proyecto usa dos estrategias:
+- **Thread-per-Client**: Para los clientes de consola, `TaskServer` crea un thread por cada cliente. Simple y directo.
+- **Thread Pool (`ExecutorService`)**: Para el servidor web, `WebServer` usa un pool de threads. Esto es más eficiente porque reutiliza threads para manejar múltiples peticiones, evitando el costo de crear y destruir un thread para cada una.
 
 ```java
-// ESTO CREA UN THREAD
-Thread t = new Thread(() -> {
-    System.out.println("Corriendo en paralelo");
-});
-t.start();  // ← INICIA el thread
-System.out.println("Esto corre simultáneamente");
+// En TaskServer.java (un thread por cliente)
+new Thread(clientHandler).start();
+
+// En WebServer.java (pool de threads)
+servidor.setExecutor(Executors.newCachedThreadPool());
 ```
 
 En tu proyecto, TaskServer crea un thread por cada ClientHandler.
